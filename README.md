@@ -1,3 +1,4 @@
+[![Render and verify](https://github.com/TimurSlavinskiy/mathematical-art-lab/actions/workflows/render-check.yml/badge.svg)](https://github.com/TimurSlavinskiy/mathematical-art-lab/actions/workflows/render-check.yml)
 # HORIZON — Mathematical Black Hole Art
 
 **An original algorithmic space illustration rendered from mathematical equations in Python — no generative AI, downloaded imagery, or 3D modeling.**
