@@ -1,0 +1,75 @@
+name: Render and verify mathematical art
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  render-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Get repository code
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+
+      - name: Generate mathematical artwork
+        run: |
+          mkdir -p artifacts
+          python generate.py --width 480 --height 300 --seed 27 --output artifacts/horizon.png
+          python generate.py --width 480 --height 300 --seed 27 --output artifacts/horizon-repeat.png
+          python render_my_formula.py --size 256 --output artifacts/my_formula.png
+
+      - name: Verify PNG files and repeatability
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from PIL import Image
+
+          expected = {
+              'horizon.png': (480, 300),
+              'horizon-repeat.png': (480, 300),
+              'my_formula.png': (256, 256),
+          }
+          images = {}
+          for filename, dimensions in expected.items():
+              path = Path('artifacts') / filename
+              if not path.is_file():
+                  raise AssertionError(f'Missing output: {path}')
+              with Image.open(path) as image:
+                  image.load()
+                  assert image.format == 'PNG', f'{filename}: not a PNG'
+                  assert image.size == dimensions, f'{filename}: incorrect size {image.size}'
+                  assert image.mode == 'RGB', f'{filename}: expected RGB'
+                  extrema = image.getextrema()
+                  assert max(hi - lo for lo, hi in extrema) >= 30, f'{filename}: image looks blank'
+                  images[filename] = image.tobytes()
+              print(f'PASS {filename}: {dimensions[0]}x{dimensions[1]} RGB PNG')
+
+          assert images['horizon.png'] == images['horizon-repeat.png'], (
+              'Same seed did not reproduce the same artwork'
+          )
+          print('PASS reproducibility: same seed produces identical pixels')
+          PY
+
+      - name: Save artwork from this workflow run
+        uses: actions/upload-artifact@v4
+        with:
+          name: mathematical-art-preview
+          path: |
+            artifacts/horizon.png
+            artifacts/my_formula.png
+          if-no-files-found: error
